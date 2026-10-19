@@ -4,7 +4,7 @@
 
 A CLI made from this template gets information out of one website for the person whose account it is signed in as, by driving a real browser, and writes its own code for any read it has not done before. It is built on the machinery of `workday-cli` and `x-cli`: the same `core/`, the same request queue, the same awf workflows that build and repair ops. Only the domain folder, `site/`, is the site's own.
 
-The template is not tied to a site. `bun create <user>/web-to-cli <dir>` copies it and `bun run configure` turns the copy into a CLI for one: it names the command (`bin/site` becomes `bin/<cli>`), sets the origin, renames the `WEBCLI_` environment prefix, and leaves what it can't know for a person ([`docs/new-site.md`](docs/new-site.md)). This document says `site` for the command and "the site" for whatever it reads; the examples use a generic site with items, its search and an item's page, the way a Hacker News CLI (`configure hn --url https://news.ycombinator.com --public`) would look.
+The template is not tied to a site. `bun create <user>/web-to-cli <dir>` copies it and `bun run configure` turns the copy into a CLI for one: it names the command (`bin/site` becomes `bin/<cli>`), sets the origin, gives the environment variables a prefix of its own (`HNCLI_` for `hn`), and leaves what it can't know for a person ([`docs/new-site.md`](docs/new-site.md)). This document says `site` for the command and "the site" for whatever it reads; the examples use a generic site with items, its search and an item's page, the way a Hacker News CLI (`configure hn --url https://news.ycombinator.com --public`) would look.
 
 The reads a site's CLI ends up covering are what its people ask for, typically:
 
@@ -191,7 +191,7 @@ An op exports one `defineOp` (from `site/op.ts`) with a typed input, a typed out
 
 - **Steps are named** so a failure points at one (`failed at "read results"`), and each step leaves a screenshot and an accessibility snapshot when it fails.
 - **Output is read from the site**, never echoed from input.
-- **`app` is the helper library** (`site/helpers/`), for moves every page shares. It starts generic: `open` a path and wait for `SITE.ready`, turning the site's refusals into exit 4; `list` the elements matching a selector, scrolling at a person's pace up to a limit; `json`, the response the page fetches while an action runs; `scroll`, `text`, and `errors`, which reads `SITE.refusals`. The first builds make it the site's own (its search, its pagination). Locators target `SITE.testIdAttribute` first, when the site has one.
+- **`app` is the helper library** (`site/helpers/`), for moves every page shares. It starts generic: `open` a path and wait for `SITE.ready`, turning the site's refusals into exit 4; `list` the elements matching a selector, scrolling at a person's pace up to a limit; `json`, the response the page fetches while an action runs; `scroll`, `text`, and `errors`, which looks for `SITE.refusals` in the title and in a page short enough to be nothing but a refusal (a long page that mentions a rate limit is content). The first builds make it the site's own (its search, its pagination). Locators target `SITE.testIdAttribute` first, when the site has one.
 - **Every read is bounded**: a `limit` with a default, or a stopping point; a list that scrolls stops after ten scrolls and says there is `more`.
 - **Ops are the same for every account.** What differs (a list id, the account's own name) comes in as input or from the account's knowledge file.
 

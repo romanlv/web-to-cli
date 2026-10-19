@@ -22,13 +22,15 @@ const visible = async (page: Page, selectors: readonly string[]): Promise<boolea
  * Signed out lands on the sign-in flow, leaves the site (an SSO page) or shows a sign-in control;
  * signed in shows what `SITE.signIn.signedIn` names. A site that names nothing for signed in counts
  * a loaded page with no signed-out sign as signed in, which a slow sign-in redirect can fool: name
- * one as soon as you know it.
+ * one as soon as you know it. A context that names one account, and must refuse a session signed
+ * in as another, needs a check of its own here that returns `elsewhere`.
  */
 export const signInState = async (page: Page, _contextUrl: string): Promise<SignInState> => {
   if (!SITE.signIn.required) return onSite(page.url()) ? "signed-in" : "unknown";
   if (isSignInUrl(page.url())) return "signed-out";
-  if (SITE.signIn.signedIn.length && (await visible(page, SITE.signIn.signedIn))) return onSite(page.url()) ? "signed-in" : "elsewhere";
+  // Off the site is an SSO page or a host missing from SITE.aliases; about:blank is a load not begun.
   if (!onSite(page.url())) return page.url() === "about:blank" ? "unknown" : "signed-out";
+  if (SITE.signIn.signedIn.length && (await visible(page, SITE.signIn.signedIn))) return "signed-in";
   if (await visible(page, SITE.signIn.signedOut)) return "signed-out";
   if (SITE.signIn.signedIn.length) return "unknown";
   const loaded = await page.evaluate(() => document.readyState === "complete").catch(() => false);

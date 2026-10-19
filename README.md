@@ -33,14 +33,14 @@ bin/hn request:status R-0001 --wait
 | What the site is like: pages, controls, the calls behind them | `site/knowledge/` | grows with each build |
 | The ops | `site/ops/<noun>-<verb>/` | written by the agents, through requests |
 
-`core/` is x-cli's, unchanged except for one setting a public site needs (`noSignIn`), so fixes
-there can be carried between CLIs made from it. The domain folder is always `site/`; only the
-command, the origin and the environment prefix change.
+`core/` is x-cli's, unchanged except for one setting a public site needs (`noSignIn`) and its
+headless sign-in, so fixes there can be carried between CLIs made from it. The domain folder is
+always `site/`; only the command, the origin and the environment prefix change.
 
 ## `bun run configure`
 
 ```
-bun run configure [<cli>] [--url <origin>] [--public] [--careful] [--prefix <PREFIX_>] [--into <dir>] [--yes]
+bun run configure [<cli>] [--url <origin>] [--public] [--careful] [--prefix <PREFIX_>] [--into <dir>] [--yes] [--no-commit]
 ```
 
 `bun create` can't ask questions itself: it runs a template's postinstall with no terminal and
@@ -53,13 +53,17 @@ flag (or takes every answer as flags, with `--yes` for the defaults, for scripts
 - `--careful`: the site watches for automation (as X does): installed Chrome without the automation
   switch, one kept browser between calls, one build at a time
 - sets the environment prefix (`HNCLI_` for `hn`; the template's is `WEBCLI_`)
-- rewrites this part of the README, fills in `docs/prompts.md` for the CLI, and removes itself
+- rewrites this part of the README and the top of `AGENTS.md`, fills in `docs/prompts.md` for the
+  CLI, and removes itself and its test
 - with `--into <dir>`, run from a template checkout, copies the template there first (no ops, state
   or sign-ins), installs and runs `git init`: the same result without `bun create` or GitHub
-- refuses to configure the template's own checkout in place (`--force` overrides)
+- refuses to configure the template's own checkout (a folder named `web-to-cli`) in place
+  (`--force` overrides); a copy made with GitHub's "Use this template" or a clone into another
+  folder configures in place as a `bun create` copy does
 
-`bun create` makes the first commit from the unconfigured template, so `configure`'s changes show
-as one diff to commit.
+`bun create` makes the first commit from the unconfigured template, and `configure` commits its
+change on top (`--no-commit` leaves it to you), so `git show` is exactly what it did. Builds branch
+from `main` and see only what is committed: commit your own edits to `site/` before a request.
 
 Then fill in what it can't know, from one look at the site: [`docs/new-site.md`](docs/new-site.md).
 

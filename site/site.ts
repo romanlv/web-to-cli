@@ -1,6 +1,6 @@
-// What this CLI's site is. This is the file to edit first when adapting the template:
-// `bun run configure` fills in the name and the origin, and the rest is
-// what you learn by opening the site once. domain.ts and helpers/ read everything from here,
+// What this CLI's site is. This is the file to edit first when adapting the template: the name
+// and the origin come from `bun run configure`, and the rest is what you learn by opening the site
+// once. domain.ts and helpers/ read everything from here,
 // so a site that fits these settings needs no other code before its first request.
 
 export const SITE = {
@@ -8,7 +8,7 @@ export const SITE = {
   name: "site",
   /** The site's origin. Contexts may add a path to it (an account, a tenant, a workspace). */
   origin: "https://example.com",
-  /** Other hosts that are the same site (a mobile host, an old domain). */
+  /** Other hosts that are the same site (a mobile host, an old domain); `www.` and the bare host count as one already. */
   aliases: [] as string[],
   /** Where runs start when a context's URL names no page of its own. */
   startPath: "/",
@@ -29,7 +29,10 @@ export const SITE = {
 
   /** Shown once a page has drawn its main content: `app.open` waits for it. Empty, it waits for the load. */
   ready: "" as string,
-  /** Text the site shows when it turns the person away rather than the op being broken. */
+  /**
+   * Text the site shows when it turns the person away rather than the op being broken, looked for in
+   * the title and in short pages only (a refusal page says little else).
+   */
   refusals: [/rate limit/i, /too many requests/i, /access denied/i, /unusual traffic/i] as RegExp[],
   /** The attribute the site marks its controls with, if any: snapshots show it, and locators prefer it. */
   testIdAttribute: "data-testid" as string | undefined,
@@ -38,7 +41,10 @@ export const SITE = {
   readOnly: true,
   /** Ops may make the site's own HTTP calls without a browser (the direct-calls skill). False for a site that flags them. */
   directCalls: true,
-  /** For a site that watches for automation: installed Chrome, no automation switch, one browser kept between calls. */
+  /**
+   * For a site that watches for automation: installed Chrome, no automation switch, a headed browser's
+   * user agent (a site that turns away headless Chrome needs it), one browser kept between calls.
+   */
   careful: false,
   /** Builds at once; 1 for a site that limits each account. */
   maxRunning: 2,

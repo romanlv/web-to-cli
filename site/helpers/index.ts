@@ -10,12 +10,14 @@ import { SITE } from "../site";
 
 export const ORIGIN = SITE.origin;
 
-const HOSTS = new Set([new URL(SITE.origin).hostname, ...SITE.aliases]);
+/** A host and its `www.` twin are one site. */
+const bare = (host: string) => host.toLowerCase().replace(/^www\./, "");
+const HOSTS = new Set([new URL(SITE.origin).hostname, ...SITE.aliases].map(bare));
 
-/** Is this URL on the site, its own host or one of its aliases? */
+/** Is this URL on the site, its own host (with or without `www.`) or one of its aliases? */
 export const onSite = (url: string): boolean => {
   try {
-    return HOSTS.has(new URL(url).hostname);
+    return HOSTS.has(bare(new URL(url).hostname));
   } catch {
     return false;
   }
@@ -35,6 +37,14 @@ export const pause = (page: Page) => page.waitForTimeout(1_000 + Math.random() *
 
 /** Stop a read after this many scrolls, and say there is `more`. */
 const MAX_SCROLLS = 10;
+/**
+ * A page turning a person away says little else, so `SITE.refusals` are looked for in the title and
+ * in a body this short at most: a long page that mentions a rate limit (an article about one, a
+ * post) is content, not a refusal.
+ */
+const REFUSAL_PAGE_CHARS = 2_000;
+/** How long `app.open` waits for `SITE.ready`. */
+const READY_WAIT_MS = 30_000;
 
 /** What a list read gives: its items, and whether the site had more than were read. */
 export interface Listed<T> {
@@ -49,10 +59,21 @@ export const siteHelpers = (page: Page) => {
       const target = new URL(path, ORIGIN).toString();
       const response = await page.goto(target, { waitUntil: "domcontentloaded" });
       if (response?.status() === 429) throw new RefusedError(`${SITE.name} said too many requests (429)`);
-      if (SITE.ready) await page.locator(SITE.ready).first().waitFor({ state: "visible", timeout: 30_000 });
-      else await page.waitForLoadState("load").catch(() => {});
-      const refused = await helpers.errors();
-      if (refused.length) throw new RefusedError(refused.join("; "));
+      if (!SITE.ready) {
+        await page.waitForLoadState("load").catch(() => {});
+        const refused = await helpers.errors();
+        if (refused.length) throw new RefusedError(refused.join("; "));
+        return;
+      }
+      // A refusal page never shows the content, so it is looked for while waiting, not after.
+      const ready = page.locator(SITE.ready).first();
+      for (const deadline = Date.now() + READY_WAIT_MS; ; ) {
+        const refused = await helpers.errors();
+        if (refused.length) throw new RefusedError(refused.join("; "));
+        if (await ready.isVisible().catch(() => false)) return;
+        if (Date.now() > deadline) throw new Error(`${target} never showed ${SITE.ready} (SITE.ready) in ${READY_WAIT_MS / 1000} s`);
+        await ready.waitFor({ state: "visible", timeout: 1_000 }).catch(() => {});
+      }
     },
 
     /**
@@ -110,18 +131,22 @@ export const siteHelpers = (page: Page) => {
       return (await el.innerText()).trim();
     },
 
-    /** Messages on the page that mean the site turned the person away (a rate limit, a block), not that the op is broken. */
+    /**
+     * Messages on the page that mean the site turned the person away (a rate limit, a block), not
+     * that the op is broken: `SITE.refusals` found in the title, or in a page short enough to be
+     * nothing but the refusal.
+     */
     async errors(): Promise<string[]> {
+      const title = await page.title().catch(() => "");
       const body = await page
         .locator("body")
         .innerText({ timeout: 2_000 })
         .catch(() => "");
+      const text = body.trim().length <= REFUSAL_PAGE_CHARS ? `${title}\n${body}` : title;
       return SITE.refusals.flatMap((re) => {
-        const m = body.match(re);
-        if (!m) return [];
         // The line the match is on, which says more than the match alone.
-        const line = body.split("\n").find((l) => re.test(l)) ?? m[0];
-        return [line.trim().slice(0, 200)];
+        const line = text.split("\n").find((l) => re.test(l));
+        return line ? [line.trim().slice(0, 200)] : [];
       });
     },
   };

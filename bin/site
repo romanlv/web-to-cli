@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Launcher for the CLI. `bun run new-site` renames this file to the CLI's command. Run it from
+# Launcher for the CLI. `bun run configure` renames this file to the CLI's command. Run it from
 # anywhere, or symlink it onto PATH:
 #
 #   ln -s "$PWD/bin/<cli>" ~/bin/<cli>

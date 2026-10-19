@@ -4,6 +4,7 @@ The checkout has two parts: `core/`, the machinery and the instructions every si
 domain folder `site/`, which is all a new site needs to fill in. `bun run configure` does the
 renaming; this page is what is left after it, and why each piece is where it is.
 
+<!-- template -->
 ## 1. Create and configure
 
 ```sh
@@ -13,12 +14,14 @@ bun run configure      # or: bun run configure <cli> --url <origin> [--public] [
 ```
 
 From a local checkout of the template, `bun run configure <cli> --url <origin> --into ../<cli>-cli`
-does the same without GitHub.
+does the same without GitHub. A repository made with GitHub's "Use this template" is configured
+the same way: clone it and `bun run configure` (it installs what is missing).
 
 Answer no to "needs a signed-in account" (`--public`) for a site that needs no account (the CLI reads it signed out), and `--careful` for
 one that watches for automation and limits accounts (X, LinkedIn, most social sites): it costs speed
 and buys a lower profile. Both are settings in `site/site.ts`, changeable later.
 
+<!-- /template -->
 ## 2. One look at the site, into `site/site.ts`
 
 Open the site in your browser, signed in and signed out, and fill in:
@@ -28,10 +31,10 @@ Open the site in your browser, signed in and signed out, and fill in:
 | `signIn.signedIn` | something only a signed-in page shows: an avatar, an account menu, a sign-out link. The most important setting: without it, any loaded page with no sign-in button counts as signed in |
 | `signIn.signedOut` | a sign-in button, a password field |
 | `signIn.signInPath` | the paths of the sign-in flow, for a site that redirects there |
-| `aliases` | other hosts that are the same site (`m.`, `www.`, an old domain) |
+| `aliases` | other hosts that are the same site (`m.`, an old domain); `www.` and the bare host count as one already |
 | `startPath` | where a run starts: the dashboard, the feed, the front page |
 | `ready` | a selector the page shows once its main content is drawn, for a single-page app that draws after load |
-| `refusals` | the site's words for a rate limit or a block |
+| `refusals` | the site's words for a rate limit or a block, as its refusal page shows them: they are looked for in the title and in short pages, so an article that mentions a rate limit isn't one |
 | `testIdAttribute` | the attribute its controls carry (`data-testid`, `data-test`, `data-qa`), if any |
 | `directCalls` | false if the site signs its API calls or fingerprints clients: ops then read only what the page's own calls return |
 
@@ -65,6 +68,9 @@ bin/<cli> request "<a plain read: a list, a search, one record's page>"
 bin/<cli> request:status R-0001 --wait
 ```
 
+Builds branch from `main` and see only what is committed, so commit `site/` first: an edit left
+in the working tree is invisible to the agents, and can stop the merge of what they build.
+
 Review the op it builds line by line, fix what you'd do differently (in a worktree), and name it in
 `site/authoring.md` as the reference: every later build copies it.
 
@@ -91,7 +97,15 @@ read the diff of `docs/prompts.md`: it is exactly what agents will see.
 
 ## Keeping core in step
 
-`core/` is x-cli's with one addition (`noSignIn`, for public sites). Keep it that way: a fix to core
-made in one CLI can then be copied to the others and to the template as a whole-file change. What a
-site needs that core lacks goes in as a new optional hook in `core/domain.ts`, never as a site's
+`core/` is x-cli's with one addition (`noSignIn`, for public sites, and the headless sign-in it
+uses). Keep it that way: a fix to core made in one CLI can then be copied to the others and to the
+template as a whole-file change. The one per-CLI word in core is the environment prefix
+(`ENV_PREFIX` in `core/env.ts`, and the variable names in comments): after copying core files from
+another CLI or the template, put this CLI's prefix back in place of the other's:
+
+```sh
+grep -rl OTHER_ core | xargs sed -i '' 's/OTHER_/MINE_/g'   # GNU sed: -i without ''
+```
+
+What a site needs that core lacks goes in as a new optional hook in `core/domain.ts`, never as a site's
 name in core.

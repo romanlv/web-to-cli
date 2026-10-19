@@ -215,7 +215,11 @@ export const signIn = async (
   if (!credentials && !domain.noSignIn) return signInByHand(domain, contexts, ctx, { timeoutMs, headless });
   const browser = await launch(false);
   try {
-    const context = await browser.newContext({ viewport: VIEWPORT });
+    // The browser later runs get (signedInContext), so the saved user agent that direct calls send
+    // is the one the pages sent.
+    const userAgent = domain.hideAutomation ? await headedUserAgent(browser) : undefined;
+    const context = await browser.newContext({ viewport: VIEWPORT, userAgent });
+    await domain.prepareBrowser?.(context);
     const page = await context.newPage();
     await page.goto(ctx.url, { waitUntil: "domcontentloaded" });
     const wait: SignInWait = credentials
