@@ -266,18 +266,13 @@ if (!values["no-commit"]) {
 }
 
 const near = relative(process.cwd(), root);
-const where = !near ? "this folder" : near.startsWith("..") ? root : near;
+const cd = !near ? "" : `\n  cd ${near.startsWith("..") ? root : near}`;
 console.log(`
-${cli}: a CLI for ${origin}, in ${root}${committed ? ", committed on main" : ""}
+${cli}: a CLI for ${origin}${committed ? ", committed on main" : ""}
 
-Next, in ${where}:
-  1. Open ${origin} once and fill in site/site.ts: ${isPublic ? "" : "what shows only when signed in (signIn.signedIn),\n     "}what a page shows once drawn (ready), the site's refusals and test-id attribute.
-  2. Write site/authoring.md (what ops may and may not do, test data, limits) and
-     site/knowledge/site.md (what you know of the site's pages and calls).
-  3. bun run ci:check && git add -A && git commit -m "Fill in ${cli}'s site settings"
-     Builds start from main and see only what is committed${committed ? "" : ", configure's change included"}.
-  4. bin/${cli} context:add me --url ${origin}
-     bin/${cli} context:login me
-     bin/${cli} page          # the page as the agents see it
-  5. bin/${cli} request "<the first thing you want to read>"
-     Review the op it builds line by line and name it in site/authoring.md as the reference.`);
+Next:${cd}
+  bin/${cli} context:add me --url ${origin}
+  bin/${cli} context:login me
+  bin/${cli} request "what you want it to read"
+
+If login never finishes or runs say signed out, tune site/site.ts (docs/new-site.md) and commit it.`);
