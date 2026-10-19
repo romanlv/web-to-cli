@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+#
+# Launcher for the CLI. `bun run new-site` renames this file to the CLI's command. Run it from
+# anywhere, or symlink it onto PATH:
+#
+#   ln -s "$PWD/bin/<cli>" ~/bin/<cli>
+#
+# Resolves symlinks first so a linked path still finds the checkout, and runs bun on the entry
+# point without cd-ing, so relative arguments such as a file path stay the caller's.
+set -euo pipefail
+
+src="${BASH_SOURCE[0]}"
+while [[ -L "$src" ]]; do
+  dir="$(cd -P -- "$(dirname -- "$src")" && pwd)"
+  src="$(readlink -- "$src")"
+  [[ "$src" != /* ]] && src="$dir/$src"
+done
+root="$(cd -P -- "$(dirname -- "$src")/.." && pwd)"
+
+if [[ ! -d "$root/node_modules/playwright" ]]; then
+  printf '%s: dependencies missing\n  run `bun install` in %s first\n' "$(basename -- "$src")" "$root" >&2
+  exit 3
+fi
+
+exec bun "$root/site/main.ts" "$@"
