@@ -29,6 +29,17 @@ const BODY_MAX = 5_000_000;
 /** Characters of bodies kept at once, newest first: older calls keep their line, not their body. */
 const BODIES_BUDGET = 30_000_000;
 const SECRET_HEADERS = new Set(["cookie", "authorization"]);
+/** JSON keys whose values are credentials (tokens, signing secrets, API keys): a recorded body shows the key, not the value. */
+const SECRET_KEY = /secret|api_?key|password|private_?key|token$/i;
+
+/** A JSON body with every credential's value replaced; any other text as it is. */
+const redact = (text: string): string => {
+  try {
+    return JSON.stringify(JSON.parse(text, (k, v) => (SECRET_KEY.test(k) && typeof v === "string" ? "[redacted]" : v)));
+  } catch {
+    return text;
+  }
+};
 
 /**
  * Keep the last `max` calls a browser context makes, skipping assets. With `bodies`, the newest JSON
@@ -68,7 +79,8 @@ export const recordNetwork = (
     ]);
     entry.headers = Object.fromEntries(Object.entries(headers).filter(([k]) => !SECRET_HEADERS.has(k.toLowerCase())));
     if (text === undefined) return;
-    entry.body = text.length > BODY_MAX ? `${text.slice(0, BODY_MAX)}\n… cut at ${BODY_MAX} of ${text.length} characters` : text;
+    const body = /json/.test(entry.contentType ?? "") ? redact(text) : text;
+    entry.body = body.length > BODY_MAX ? `${body.slice(0, BODY_MAX)}\n… cut at ${BODY_MAX} of ${body.length} characters` : body;
     let size = 0;
     for (const e of [...entries].reverse()) {
       if (e.body === undefined) continue;

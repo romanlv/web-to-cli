@@ -265,8 +265,8 @@ Three agents work in it, and all run on their own: the **planner**, on a strong 
 
 With `"sandbox": true` the team shares one srt sandbox per run:
 
-- **Writes** only its worktree, a CLI home of the request's own (`.state/sandboxes/R-0012`: sessions, traces, dry runs, failures) and a short socket directory (`/tmp/site-R-0012-…`).
-- **Reads** its context's saved sign-in where it is (`WEBCLI_CONTEXTS_DIR`), a repair's the failure bundles of its op (`.state/failures/<op>/`), and awf's source for the type-check. Not the checkout, other worktrees, `~` or anything else in `.state`.
+- **Writes** only its worktree, a CLI home of the request's own (`.state/sandboxes/R-0012`: sessions, traces, dry runs, failures) a short socket directory (`/tmp/site-R-0012-…`) and its context's saved sign-in where it is (`WEBCLI_CONTEXTS_DIR`), so a token its browser refreshes is saved for the next run.
+- **Reads** a repair's the failure bundles of its op (`.state/failures/<op>/`), and awf's source for the type-check. Not the checkout, other worktrees, `~` or anything else in `.state`.
 - **Reaches** no network but its model's, and the harnesses' own web search is off: it would reach past the allowlist. The browser stays on the host, since Chromium doesn't start under srt: a host browser server, one per run, ending with it, listens on a socket in that directory, and the CLI connects to it (`WEBCLI_BROWSER`). Its session daemons bind their sockets there too.
 - **Checks** with `ci:sandbox`, which is `ci:fast` without the workflow tests: `awf test` can't run under srt, and neither could e2e tests, which need a port for their mock site. The workflow still runs the full checks on the host and hands their failures over as output.
 - **More**, when `"sandbox"` is an object instead of `true`: `{"network": ["docs.playwright.dev"], "read": ["../shared"], "write": [...]}` adds domains and paths (from the checkout's root) to the above. Agents read the account's sign-in and what it can see, so a domain added is somewhere they could send both.

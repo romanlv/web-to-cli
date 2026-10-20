@@ -79,9 +79,11 @@ export interface Domain<Helpers = unknown> {
   noSignIn?: boolean;
   /**
    * Set up every signed-in browser before it loads the app, such as routes that block a page the
-   * app would otherwise load to sign out the sign-in every browser of the context shares.
+   * app would otherwise load to sign out the sign-in every browser of the context shares. A browser
+   * on a saved sign-in gets the file it came from (`session.authFile`), for an app that rotates its
+   * tokens and must write each new one back; the browser of a sign-in in progress gets none.
    */
-  prepareBrowser?(context: BrowserContext): Promise<void>;
+  prepareBrowser?(context: BrowserContext, session?: { authFile: string }): Promise<void>;
   /**
    * The URL a run starts from, given the URL a sign-in landed on and the context's own URL: the
    * app's home page. The sign-in check is made against it, so it keeps what the check needs.

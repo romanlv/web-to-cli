@@ -111,7 +111,7 @@ const workspace = ({ request, paths }: PromptRun, role: string): string => md`
   Before anything else, read:
   - ${coreAuthoring(paths)}: how any op is written
   - ${paths.domainDir}/authoring.md: what is particular to ${request.domain.name}, which wins where the two differ, and which op is the reference
-  - ${paths.domainDir}/knowledge/${request.domain.name}.md
+  - ${paths.domainDir}/knowledge/site.md
   - ${paths.domainDir}/knowledge/contexts/${request.context}.md, what is particular to this context (the account or tenant it signs in as), if it exists
 `;
 
@@ -133,7 +133,7 @@ export const builderInstructions = (run: PromptRun): string => {
     - Drive the app only through the CLI, as \`${paths.cli} <command>\`, adding \`--session ${paths.session} --context ${request.context}\` to every page command. \`${paths.cli} help\` lists them. Close nothing you didn't open.
     - Never sign in and never type credentials. If the session is signed out, answer with the question "${signInQuestion(request.domain.name, request.context)}".
     - ${testData(run)}
-    - What one screen taught you goes in the op's notes.md; what holds for every op goes in knowledge/${request.domain.name}.md too; a move two ops need becomes a helper.
+    - What one screen taught you goes in the op's notes.md; what holds for every op goes in knowledge/site.md too; a move two ops need becomes a helper.
     - The direct-calls skill is ${join(paths.worktree, ".claude", "skills", "direct-calls", "SKILL.md")}; read it when a prompt names it.
   `;
 };

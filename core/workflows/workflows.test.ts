@@ -647,6 +647,26 @@ test("a mapper change re-verifies the other ops too, and a change to the op and 
   expect(verified.slice(0, 2)).toEqual(["thing:find", "thing:list"]);
 });
 
+test("a dryRun example runs with --dry-run and passes only when the op stopped before its save", async () => {
+  const r = file();
+  const worktree = join(home, "worktrees", r.id);
+  mkdirSync(join(worktree, "x", "ops", "thing-find"), { recursive: true });
+  // A stand-in CLI: a dry run reports where it stopped, unless STOPS=0 has it save anyway.
+  writeFileSync(
+    join(worktree, "x", "main.ts"),
+    `const dry = process.argv.includes("--dry-run") && process.env.STOPS !== "0";
+console.log(JSON.stringify({ ok: true, data: dry ? { dryRun: "stopped before Save" } : { saved: true } }));`,
+  );
+  writeFileSync(join(worktree, "x", "ops", "thing-find", "examples.json"), JSON.stringify([{ context: "acme", input: {}, dryRun: true }]));
+  expect(await realDeps.verify(worktree, r, "thing:find")).toMatchObject({ ok: true, runs: [{ dryRun: true, ok: true }] });
+  process.env.STOPS = "0";
+  try {
+    expect(await realDeps.verify(worktree, r, "thing:find")).toMatchObject({ ok: false, runs: [{ dryRun: true, ok: false }] });
+  } finally {
+    delete process.env.STOPS;
+  }
+});
+
 test("an examples.json that isn't JSON fails verify and goes back to the builder, instead of ending the run", async () => {
   const r = file();
   const worktree = join(home, "worktrees", r.id);

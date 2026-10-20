@@ -17,6 +17,8 @@ export interface VerifyRun {
   input: Record<string, unknown>;
   /** Run with --browser, past the op's direct way. */
   browser?: boolean;
+  /** Run with --dry-run (the example's `dryRun`). */
+  dryRun?: boolean;
   exitCode: number;
   ok: boolean;
   data?: unknown;
@@ -152,6 +154,8 @@ export const opDirIn = (domainDir: string, op: string): string => join(domainDir
 interface Example {
   context: string;
   input: Record<string, unknown>;
+  /** Run with `--dry-run`, for a write no example can repeat: it passes only if the op stopped before its save. */
+  dryRun?: boolean;
 }
 
 const isExample = (e: unknown): e is Example =>
@@ -167,7 +171,8 @@ export const examplesIn = (opDir: string): Example[] => {
   } catch (err) {
     throw new Error(`not JSON: ${(err as Error).message}`);
   }
-  if (!Array.isArray(examples) || !examples.every(isExample)) throw new Error('not a list of { "context": "…", "input": { … } }');
+  if (!Array.isArray(examples) || !examples.every(isExample))
+    throw new Error('not a list of { "context": "…", "input": { … }, "dryRun"?: true }');
   return examples;
 };
 
@@ -228,6 +233,7 @@ const verify = async (worktree: string, request: RequestRecord, op: string): Pro
       request.context,
       "--json",
       ...(browser ? ["--browser"] : []),
+      ...(example.dryRun ? ["--dry-run"] : []),
     ]);
     let envelope: { ok?: boolean; data?: unknown; error?: string } = {};
     try {
@@ -239,8 +245,10 @@ const verify = async (worktree: string, request: RequestRecord, op: string): Pro
     const run: VerifyRun = {
       input: example.input,
       ...(browser ? { browser } : {}),
+      ...(example.dryRun ? { dryRun: true } : {}),
       exitCode,
-      ok: exitCode === 0 && envelope.ok === true,
+      ok:
+        exitCode === 0 && envelope.ok === true && (!example.dryRun || typeof (envelope.data as { dryRun?: unknown })?.dryRun === "string"),
       data: envelope.data,
       error: envelope.error,
     };

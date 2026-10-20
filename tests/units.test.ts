@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import Type from "typebox";
 import { awfArgs, describeRun, earlierSpans, formatCost, runUsage } from "../core/awf";
-import { launch, openSignedIn, readSignIn, signedInContext } from "../core/browser";
+import { launch, openSignedIn, readSignIn, saveSession, signedInContext } from "../core/browser";
 import { callOf, parseArgs } from "../core/cli";
 import { Contexts } from "../core/contexts";
 import type { Domain } from "../core/domain";
@@ -904,6 +904,39 @@ describe("loading ops", () => {
       expect(ops.size).toBe(0);
       expect(broken[0]!.error).toBe("thing:find has a direct way, but x ops make no calls of their own (directCalls: false)");
       expect((await loadOps({ name: "x", dir } as Domain)).ops.size).toBe(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("saveSession", () => {
+  const cookie = (value: string, expires: number) => ({
+    name: "refresh",
+    value,
+    domain: "auth.site.test",
+    path: "/",
+    expires,
+    httpOnly: true,
+    secure: true,
+    sameSite: "Lax" as const,
+  });
+  const browserWith = (value: string, expires: number) => ({
+    storageState: async () => ({ cookies: [cookie(value, expires)], origins: [] }),
+  });
+
+  test("keeps a cookie another process rotated since, unless it is a sign-in", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "save-session-"));
+    const ctx = { authFile: join(dir, "auth.json") } as Parameters<typeof saveSession>[1];
+    const saved = () => JSON.parse(readFileSync(ctx.authFile, "utf8")).cookies[0].value;
+    try {
+      await saveSession(browserWith("rotated", 2000), ctx);
+      await saveSession(browserWith("replaced", 1000), ctx);
+      expect(saved()).toBe("rotated");
+      await saveSession(browserWith("newest", 3000), ctx);
+      expect(saved()).toBe("newest");
+      await saveSession(browserWith("signed-in", 1000), ctx, { replace: true });
+      expect(saved()).toBe("signed-in");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

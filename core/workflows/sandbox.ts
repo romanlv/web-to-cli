@@ -1,5 +1,5 @@
 // Where sandboxed agents live: srt, writing only the worktree, a CLI home of the request's own and
-// a short socket directory. They read their context's saved sign-in where it is, and a repair's
+// a short socket directory. They read their context's saved sign-in where it is (and write it back), and a repair's
 // agents the op's failure bundles. Their checks are ci:sandbox: `awf test` can't run under srt, nor
 // the e2e tests, whose mock app can't take a port, so those run on the host only. The worktree gets
 // node_modules of its own, agentswf's types among them, since bun resolving through a link to the
@@ -43,7 +43,9 @@ export const sandboxSpec = (request: RequestRecord, worktree: string, paths: San
   // A repair's: the op's whole failures folder, so the bundles that join it later are readable too.
   const failures = request.failure && request.op ? [join(request.domain.home, "failures", opFolder(request.op))] : [];
   return {
-    write: [worktree, paths.home, paths.sockets],
+    // The context's own folder too: an app that rotates its tokens has the browser write each new
+    // one back (Domain.prepareBrowser), or the host's saved sign-in dies with the build's refresh.
+    write: [worktree, paths.home, paths.sockets, join(contexts, request.context)],
     read: [join(contexts, "config.json"), join(contexts, request.context), ...failures],
     sockets: [paths.sockets],
     srt: {},

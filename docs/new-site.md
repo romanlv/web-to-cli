@@ -48,9 +48,15 @@ The hooks are each described in `core/domain.ts`. The ones a site most often nee
 - `signInState` beyond selectors: a context that names an account (`https://site/<user>`) and must
   refuse a session signed in as anyone else (`elsewhere`). x-cli's `x/domain.ts` is the example.
 - `submitSignIn`: a sign-in form the CLI may fill from `.env.<context>`, for a site that doesn't
-  challenge automated logins (an internal tool, a tenant app). X does, so x-cli has none.
+  challenge automated logins (an internal tool, a tenant app). X does, so x-cli has none. A site that
+  mails a one-time code instead: forward the mail to an inbox with an API (AgentMail), name it in
+  `.env.<context>` (`PASSWORD=agentmail:<inbox>`), and have `submitSignIn` read the code from it.
 - `keepAlive`: a site that signs out idle sessions within a build's time.
-- `prepareBrowser`: routes to block, headers to watch, before any page loads.
+- `prepareBrowser`: routes to block, headers to watch, before any page loads. A site that rotates
+  its refresh token on every refresh (Frontegg, Auth0 with rotation) routes the refresh call there:
+  send it with the newest token saved in `session.authFile` and write the new one back at once, or
+  the saved sign-in dies minutes after any run and the next one signs in again. Nothing else may
+  then open a browser on the saved sign-in: a refresh it doesn't save ends it.
 - `pageCommands`: an extra `page:<name>` for a move agents make constantly while exploring (a search).
 
 ## 4. The rules, in `site/authoring.md`
@@ -97,9 +103,9 @@ read the diff of `docs/prompts.md`: it is exactly what agents will see.
 
 ## Keeping core in step
 
-`core/` is x-cli's with one addition (`noSignIn`, for public sites, and the headless sign-in it
-uses). Keep it that way: a fix to core made in one CLI can then be copied to the others and to the
-template as a whole-file change. The one per-CLI word in core is the environment prefix
+`core/` is the same in every CLI made from the template. Keep it that way: a fix to core made in one
+CLI is copied to the template and the others as a whole-file change, template first, so a sync from
+it never drops the fix. The one per-CLI word in core is the environment prefix
 (`ENV_PREFIX` in `core/env.ts`, and the variable names in comments): after copying core files from
 another CLI or the template, put this CLI's prefix back in place of the other's:
 

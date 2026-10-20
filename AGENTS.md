@@ -7,8 +7,8 @@ driving a real browser, and builds its own ops through awf workflows. It is
 `docs/new-site.md` how to adapt it, and `bin/site help` the command reference.
 <!-- /template -->
 
-- `core/` is the reusable machinery and never imports from `site/`, the domain. It is x-cli's,
-  plus `Domain.noSignIn`; keep it in step with x-cli rather than letting it drift.
+- `core/` is the reusable machinery and never imports from `site/`, the domain. It is the same
+  in every CLI made from the template; keep it in step rather than letting it drift (`docs/new-site.md`).
 - `site/site.ts` holds the site's settings; `site/domain.ts` and `site/helpers/` read them. A site's
   specifics go there, never into core.
 <!-- template -->

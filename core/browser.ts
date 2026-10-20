@@ -37,7 +37,7 @@ const signInWaitMs = (): number => envNumber("SIGNIN_WAIT_MS", 15_000);
 export const signedInContext = async (browser: Browser, domain: Domain, ctx: Context): Promise<BrowserContext> => {
   const userAgent = domain.hideAutomation ? await headedUserAgent(browser) : undefined;
   const context = await browser.newContext({ storageState: ctx.authFile, viewport: VIEWPORT, userAgent });
-  await domain.prepareBrowser?.(context);
+  await domain.prepareBrowser?.(context, { authFile: ctx.authFile });
   return context;
 };
 
@@ -62,15 +62,35 @@ export const signInStateOf = async (domain: Domain, page: Page, contextUrl: stri
   }
 };
 
+type StorageState = Awaited<ReturnType<BrowserContext["storageState"]>>;
+type Cookie = StorageState["cookies"][number];
+
+/** The saved cookie when it outlives this browser's of the same name: another process rotated it since this one loaded. */
+const newer = (saved: StorageState, mine: Cookie): Cookie => {
+  const theirs = saved.cookies.find((c) => c.name === mine.name && c.domain === mine.domain && c.path === mine.path);
+  return theirs && mine.expires > 0 && theirs.expires > mine.expires ? theirs : mine;
+};
+
 /**
  * Save a signed-in browser's cookies as the context's sign-in. The app may keep its idle timer in
  * them, so a later browser starts from the last activity, not from the person's sign-in. Written
- * whole and renamed into place, since several processes save it.
+ * whole and renamed into place, since several processes save it. Unless `replace` (a sign-in), a
+ * cookie already saved with a later expiry is kept: an app that rotates its refresh token issues the
+ * new one with a later expiry, and a browser loaded before the rotation must not save the old one back.
  */
-export const saveSession = async (context: Pick<BrowserContext, "storageState">, ctx: Context): Promise<void> => {
+export const saveSession = async (
+  context: Pick<BrowserContext, "storageState">,
+  ctx: Context,
+  { replace = false }: { replace?: boolean } = {},
+): Promise<void> => {
   mkdirSync(dirname(ctx.authFile), { recursive: true });
+  const state = await context.storageState();
+  if (!replace && existsSync(ctx.authFile)) {
+    const saved = JSON.parse(readFileSync(ctx.authFile, "utf8")) as StorageState;
+    state.cookies = state.cookies.map((c) => newer(saved, c));
+  }
   const temp = `${ctx.authFile}.${process.pid}.tmp`;
-  await context.storageState({ path: temp });
+  writeFileSync(temp, JSON.stringify(state, null, 2));
   chmodSync(temp, 0o600);
   renameSync(temp, ctx.authFile);
 };
@@ -144,6 +164,7 @@ export const openSignedIn = async (
   } catch (err) {
     const credentials = err instanceof SignedOut && domain.submitSignIn ? savedCredentials(domain.root, ctx.name) : undefined;
     if (!credentials) throw err;
+    progress(`${firstLine((err as Error).message)}; signing in again from .env.${ctx.name}`);
     await signIn(domain, contexts, ctx, { credentials });
     return { ...(await openOnce(domain, contexts, contexts.get(ctx.name), options)), signedInNow: true };
   }
@@ -233,7 +254,7 @@ export const signIn = async (
 };
 
 const signedIn = async (domain: Domain, contexts: Contexts, ctx: Context, context: BrowserContext, page: Page): Promise<void> => {
-  await saveSession(context, ctx);
+  await saveSession(context, ctx, { replace: true });
   await saveUserAgent(page, ctx);
   contexts.markSignedIn(ctx.name, domain.appUrl?.(page.url(), ctx.url) ?? page.url());
 };

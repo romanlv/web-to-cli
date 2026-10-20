@@ -46,6 +46,6 @@ export const SITE = {
    * user agent (a site that turns away headless Chrome needs it), one browser kept between calls.
    */
   careful: false,
-  /** Builds at once; 1 for a site that limits each account. */
+  /** Builds at once; 1 for a site that limits each account, or whose builds share test data. */
   maxRunning: 2,
 } as const;
