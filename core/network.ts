@@ -28,14 +28,19 @@ const ASSET = /\.(m?js|css|png|jpe?g|gif|webp|svg|ico|woff2?|ttf|mp4|m3u8|ts)(\?
 const BODY_MAX = 5_000_000;
 /** Characters of bodies kept at once, newest first: older calls keep their line, not their body. */
 const BODIES_BUDGET = 30_000_000;
-const SECRET_HEADERS = new Set(["cookie", "authorization"]);
-/** Names whose values are credentials (`accessToken`, `client_secret`, `password`), not a page token or a key's name. */
+/** Names whose values are credentials (`accessToken`, `client_secret`, `x-api-key`), not a page token or a key's name. */
 const SECRET = String.raw`(?![\w-]*(?:page|cursor|next|continuation|sync)[_-]?token)[\w-]*(?:token|secret|password|api[_-]?key|private[_-]?key)`;
+const SECRET_HEADER = new RegExp(String.raw`^(?:cookie|authorization|${SECRET})$`, "i");
 const JSON_SECRET = new RegExp(String.raw`("${SECRET}"\s*:\s*)"(?:[^"\\]|\\.)*"`, "gi");
+/** The same in JSON held as a string (`"{\"accessToken\":\"…\"}"`), as an event stream may send it. */
+const QUOTED_SECRET = new RegExp(String.raw`(\\"${SECRET}\\"\s*:\s*)\\"[^\\"]*\\"`, "gi");
 const FORM_SECRET = new RegExp(String.raw`(^|&)(${SECRET}=)[^&]*`, "gi");
 
-/** A body or a form with every credential's string value replaced; the rest is left as it came. */
-export const redact = (text: string): string => text.replace(JSON_SECRET, '$1"[redacted]"').replace(FORM_SECRET, "$1$2[redacted]");
+/** A body (or, `form`, a form) with every credential's string value replaced; the rest is left as it came. */
+export const redact = (text: string, form = false): string => {
+  const json = text.replace(JSON_SECRET, '$1"[redacted]"').replace(QUOTED_SECRET, '$1\\"[redacted]\\"');
+  return form ? json.replace(FORM_SECRET, "$1$2[redacted]") : json;
+};
 
 /**
  * Keep the last `max` calls a browser context makes, skipping assets. With `bodies`, the newest JSON
@@ -61,7 +66,7 @@ export const recordNetwork = (
     const label = started.get(request);
     if (label) entry.during = label;
     const postData = request.postData();
-    if (postData) entry.postData = redact(postData).slice(0, 2000);
+    if (postData) entry.postData = redact(postData, true).slice(0, 2000);
     if (failed) entry.failed = failed;
     entries.push(entry);
     if (entries.length > max) entries.splice(0, entries.length - max);
@@ -73,7 +78,7 @@ export const recordNetwork = (
       failed ? undefined : response.text().catch(() => undefined),
       request.allHeaders().catch(() => ({})),
     ]);
-    entry.headers = Object.fromEntries(Object.entries(headers).filter(([k]) => !SECRET_HEADERS.has(k.toLowerCase())));
+    entry.headers = Object.fromEntries(Object.entries(headers).filter(([k]) => !SECRET_HEADER.test(k)));
     if (text === undefined) return;
     const body = redact(text);
     entry.body = body.length > BODY_MAX ? `${body.slice(0, BODY_MAX)}\n… cut at ${BODY_MAX} of ${body.length} characters` : body;

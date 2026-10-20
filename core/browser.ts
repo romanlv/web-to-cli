@@ -96,10 +96,15 @@ export const saveSession = async (
   const state = await context.storageState();
   if (!replace) {
     const saved = savedCookies(ctx.authFile);
+    const same = (a: Cookie) => (b: Cookie) => a.name === b.name && a.domain === b.domain && a.path === b.path;
     state.cookies = state.cookies.map((mine) => {
-      const theirs = saved.find((c) => c.name === mine.name && c.domain === mine.domain && c.path === mine.path);
+      const theirs = saved.find(same(mine));
       return theirs && mine.expires > 0 && theirs.expires > mine.expires ? theirs : mine;
     });
+    // A cookie the app cleared in this browser (a refresh that lost a race and was told to sign out)
+    // stays as saved while it lasts: another process may have rotated it since.
+    const now = Date.now() / 1000;
+    state.cookies.push(...saved.filter((c) => (c.expires < 0 || c.expires > now) && !state.cookies.some(same(c))));
   }
   writeSignIn(ctx.authFile, state);
 };

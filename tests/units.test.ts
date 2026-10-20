@@ -922,8 +922,9 @@ describe("saveSession", () => {
     secure: true,
     sameSite: "Lax" as const,
   });
+  // Expiries an hour on, a second apart.
   const browserWith = (value: string, expires: number) => ({
-    storageState: async () => ({ cookies: [cookie(value, expires)], origins: [] }),
+    storageState: async () => ({ cookies: [cookie(value, Math.floor(Date.now() / 1000) + 3600 + expires)], origins: [] }),
   });
 
   test("keeps a cookie another process rotated since, unless it is a sign-in", async () => {
@@ -938,6 +939,8 @@ describe("saveSession", () => {
       expect(saved()).toBe("newest");
       await saveSession(browserWith("signed-in", 1000), ctx, { replace: true });
       expect(saved()).toBe("signed-in");
+      await saveSession({ storageState: async () => ({ cookies: [], origins: [] }) }, ctx);
+      expect(saved()).toBe("signed-in");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -951,8 +954,12 @@ describe("redact", () => {
     ).toBe(
       '{"id": 12345678901234567890, "accessToken": "[redacted]", "nextPageToken": "n", "apiKeyId": "k", "webhook_secret": "[redacted]"}',
     );
-    expect(redact("grant_type=refresh_token&refresh_token=abc&password=p&next_page_token=z")).toBe(
+    expect(redact("grant_type=refresh_token&refresh_token=abc&password=p&next_page_token=z", true)).toBe(
       "grant_type=refresh_token&refresh_token=[redacted]&password=[redacted]&next_page_token=z",
     );
+    expect(redact('{"url": "https://x/cb?a=1&access_token=abc", "name": "keep"}')).toBe(
+      '{"url": "https://x/cb?a=1&access_token=abc", "name": "keep"}',
+    );
+    expect(redact('data: "{\\"accessToken\\":\\"s\\"}"')).toBe('data: "{\\"accessToken\\":\\"[redacted]\\"}"');
   });
 });

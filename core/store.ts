@@ -20,9 +20,17 @@ export const writeJson = (file: string, value: unknown, { mode, tempDir }: { mod
   mkdirSync(dirname(file), { recursive: true });
   const tmp = join(tempDir ?? dirname(file), `${basename(file)}.${process.pid}.tmp`);
   if (tempDir) mkdirSync(tempDir, { recursive: true });
-  writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`);
+  const text = `${JSON.stringify(value, null, 2)}\n`;
+  writeFileSync(tmp, text, { mode });
   if (mode !== undefined) chmodSync(tmp, mode);
-  renameSync(tmp, file);
+  try {
+    renameSync(tmp, file);
+  } catch (err) {
+    // A sandbox that grants the file alone may bind it in place (bubblewrap): write it there instead.
+    rmSync(tmp, { force: true });
+    if (!tempDir) throw err;
+    writeFileSync(file, text);
+  }
 };
 
 export const appendJsonLine = (file: string, value: unknown): void => {
