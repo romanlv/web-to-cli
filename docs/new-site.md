@@ -49,14 +49,15 @@ The hooks are each described in `core/domain.ts`. The ones a site most often nee
   refuse a session signed in as anyone else (`elsewhere`). x-cli's `x/domain.ts` is the example.
 - `submitSignIn`: a sign-in form the CLI may fill from `.env.<context>`, for a site that doesn't
   challenge automated logins (an internal tool, a tenant app). X does, so x-cli has none. A site that
-  mails a one-time code instead: forward the mail to an inbox with an API (AgentMail), name it in
-  `.env.<context>` (`PASSWORD=agentmail:<inbox>`), and have `submitSignIn` read the code from it.
+  mails a one-time code instead: forward the mail to an inbox with an API (AgentMail), name the inbox
+  in `.env.<context>` (say `PASSWORD=agentmail:<inbox>`, with the API key in the environment), and
+  have `submitSignIn` read the code from it.
 - `keepAlive`: a site that signs out idle sessions within a build's time.
-- `prepareBrowser`: routes to block, headers to watch, before any page loads. A site that rotates
-  its refresh token on every refresh (Frontegg, Auth0 with rotation) routes the refresh call there:
-  send it with the newest token saved in `session.authFile` and write the new one back at once, or
-  the saved sign-in dies minutes after any run and the next one signs in again. Nothing else may
-  then open a browser on the saved sign-in: a refresh it doesn't save ends it.
+- `prepareBrowser`: routes to block, headers to watch, before any page loads. For an app that
+  rotates its refresh token on every refresh (Frontegg), route the refresh call there: send it with
+  the newest token in `session.authFile` and write the new one back at once (`writeSignIn`), or a
+  run leaves the saved sign-in spent. A browser opened outside the CLI on the saved sign-in spends
+  it too.
 - `pageCommands`: an extra `page:<name>` for a move agents make constantly while exploring (a search).
 
 ## 4. The rules, in `site/authoring.md`
@@ -64,7 +65,9 @@ The hooks are each described in `core/domain.ts`. The ones a site most often nee
 What the CLI is for and what it must never do on the site, how test data is marked (or that there is
 none), the site's limits, and later, the reference op. Agents follow it literally, and intake
 declines requests it rules out, so it is the main guardrail. Write what you know into
-`site/knowledge/site.md` too: pages, pagination, search, the calls behind them.
+`site/knowledge/site.md` too: pages, pagination, search, the calls behind them. A site you write to
+sets `readOnly: false` (and `maxRunning: 1` when builds would share test records) and replaces the
+read-only paragraphs as the comments there say.
 
 ## 5. First request
 

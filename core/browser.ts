@@ -1,6 +1,6 @@
 // Playwright behind the CLI: a browser per call, signed in as the context's saved session, and the
 // headed sign-in a person does once per context.
-import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { type Browser, type BrowserContext, chromium, type LaunchOptions, type Page, selectors } from "playwright";
 import { type Context, type Contexts, loginHint } from "./contexts";
@@ -11,6 +11,7 @@ import { BrowserError, InputError, PreconditionError, RefusedError } from "./err
 import { type NetworkEntry, recordNetwork } from "./network";
 import { firstLine, progress } from "./output";
 import { browserBinary, startPlain } from "./plain-browser";
+import { writeJson } from "./store";
 
 export interface OpenBrowser {
   browser: Browser;
@@ -62,37 +63,45 @@ export const signInStateOf = async (domain: Domain, page: Page, contextUrl: stri
   }
 };
 
-type StorageState = Awaited<ReturnType<BrowserContext["storageState"]>>;
+export type StorageState = Awaited<ReturnType<BrowserContext["storageState"]>>;
 type Cookie = StorageState["cookies"][number];
 
-/** The saved cookie when it outlives this browser's of the same name: another process rotated it since this one loaded. */
-const newer = (saved: StorageState, mine: Cookie): Cookie => {
-  const theirs = saved.cookies.find((c) => c.name === mine.name && c.domain === mine.domain && c.path === mine.path);
-  return theirs && mine.expires > 0 && theirs.expires > mine.expires ? theirs : mine;
+/**
+ * Write a context's sign-in whole, readable by the person only. A sandboxed build may write the
+ * sign-in file but not its folder, so the temp file goes in the CLI's home when one is set.
+ */
+export const writeSignIn = (authFile: string, state: StorageState): void =>
+  writeJson(authFile, state, { mode: 0o600, tempDir: envValue("HOME") });
+
+const savedCookies = (authFile: string): Cookie[] => {
+  try {
+    return (JSON.parse(readFileSync(authFile, "utf8")) as Partial<StorageState>).cookies ?? [];
+  } catch {
+    return [];
+  }
 };
 
 /**
  * Save a signed-in browser's cookies as the context's sign-in. The app may keep its idle timer in
- * them, so a later browser starts from the last activity, not from the person's sign-in. Written
- * whole and renamed into place, since several processes save it. Unless `replace` (a sign-in), a
- * cookie already saved with a later expiry is kept: an app that rotates its refresh token issues the
- * new one with a later expiry, and a browser loaded before the rotation must not save the old one back.
+ * them, so a later browser starts from the last activity, not from the person's sign-in. Unless
+ * `replace` (a sign-in), a cookie already saved with a later expiry is kept: an app that rotates its
+ * refresh token issues the new one with a later expiry, and a browser loaded before the rotation
+ * must not save the old one back. Only cookies are compared; a rotation that keeps the expiry isn't seen.
  */
 export const saveSession = async (
   context: Pick<BrowserContext, "storageState">,
   ctx: Context,
   { replace = false }: { replace?: boolean } = {},
 ): Promise<void> => {
-  mkdirSync(dirname(ctx.authFile), { recursive: true });
   const state = await context.storageState();
-  if (!replace && existsSync(ctx.authFile)) {
-    const saved = JSON.parse(readFileSync(ctx.authFile, "utf8")) as StorageState;
-    state.cookies = state.cookies.map((c) => newer(saved, c));
+  if (!replace) {
+    const saved = savedCookies(ctx.authFile);
+    state.cookies = state.cookies.map((mine) => {
+      const theirs = saved.find((c) => c.name === mine.name && c.domain === mine.domain && c.path === mine.path);
+      return theirs && mine.expires > 0 && theirs.expires > mine.expires ? theirs : mine;
+    });
   }
-  const temp = `${ctx.authFile}.${process.pid}.tmp`;
-  writeFileSync(temp, JSON.stringify(state, null, 2));
-  chmodSync(temp, 0o600);
-  renameSync(temp, ctx.authFile);
+  writeSignIn(ctx.authFile, state);
 };
 
 const userAgentFile = (ctx: Context): string => join(dirname(ctx.authFile), "user-agent");

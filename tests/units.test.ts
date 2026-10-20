@@ -10,6 +10,7 @@ import { Contexts } from "../core/contexts";
 import type { Domain } from "../core/domain";
 import { envName, envOverride } from "../core/env";
 import { InputError, OpError } from "../core/errors";
+import { redact } from "../core/network";
 import { callArgv, loadOps, type OpEntry, opHelp, parseInput, runOp } from "../core/ops";
 import { EXIT, formatDuration, progress, progressInto } from "../core/output";
 import { browserBinary, startPlain } from "../core/plain-browser";
@@ -940,5 +941,18 @@ describe("saveSession", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("redact", () => {
+  test("hides credentials' values in JSON and forms, and leaves the rest as it came", () => {
+    expect(
+      redact('{"id": 12345678901234567890, "accessToken": "a\\"b", "nextPageToken": "n", "apiKeyId": "k", "webhook_secret": "w"}'),
+    ).toBe(
+      '{"id": 12345678901234567890, "accessToken": "[redacted]", "nextPageToken": "n", "apiKeyId": "k", "webhook_secret": "[redacted]"}',
+    );
+    expect(redact("grant_type=refresh_token&refresh_token=abc&password=p&next_page_token=z")).toBe(
+      "grant_type=refresh_token&refresh_token=[redacted]&password=[redacted]&next_page_token=z",
+    );
   });
 });

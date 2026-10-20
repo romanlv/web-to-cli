@@ -1,7 +1,7 @@
 // Small file-system pieces every part of the tool's state uses: atomic writes, JSON lines and a lock
 // that several processes (the CLI, the worker, a workflow) can share.
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 
 export const readJson = <T>(file: string, fallback: T): T => {
   try {
@@ -12,11 +12,16 @@ export const readJson = <T>(file: string, fallback: T): T => {
   }
 };
 
-/** Write through a temp file and rename, so a reader never sees half a file. */
-export const writeJson = (file: string, value: unknown): void => {
+/**
+ * Write through a temp file and rename, so a reader never sees half a file. The temp file goes in
+ * `tempDir` when given (on the same disk), for a file whose folder may not be written.
+ */
+export const writeJson = (file: string, value: unknown, { mode, tempDir }: { mode?: number; tempDir?: string } = {}): void => {
   mkdirSync(dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
+  const tmp = join(tempDir ?? dirname(file), `${basename(file)}.${process.pid}.tmp`);
+  if (tempDir) mkdirSync(tempDir, { recursive: true });
   writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`);
+  if (mode !== undefined) chmodSync(tmp, mode);
   renameSync(tmp, file);
 };
 

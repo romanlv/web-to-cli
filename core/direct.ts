@@ -14,12 +14,6 @@ export interface DirectContext {
   http: APIRequestContext;
   step<T>(name: string, fn: () => Promise<T>): Promise<T>;
   context: ContextRef;
-  /**
-   * Save the cookies `http` holds as the context's sign-in now. They are saved when `direct` returns;
-   * call it right after a call that rotates the sign-in (a token
-   * refresh), so a later failure that falls back to the browser doesn't leave the replaced cookie.
-   */
-  save(): Promise<void>;
 }
 
 /** Why the direct way failed, so the op ran in the browser. */
@@ -66,10 +60,7 @@ export const tryDirect = async (
   }
   const { http, close } = await openHttp(ctx);
   try {
-    const save = () => saveSession(http, ctx);
-    const outcome = check(await direct({ http, step: attempt.step, context: { name: ctx.name, url: ctx.appUrl }, save }, input));
-    // As a browser run does: the app may keep its idle timer, or a refreshed session, in the cookies.
-    await saveSession(http, ctx).catch(() => {});
+    const outcome = check(await direct({ http, step: attempt.step, context: { name: ctx.name, url: ctx.appUrl } }, input));
     attempt.history({ ok: true, direct: true });
     return { outcome };
   } catch (err) {
@@ -81,6 +72,9 @@ export const tryDirect = async (
     const at = attempt.at ? ` at "${attempt.at}"` : "";
     return { fellBack: { step: attempt.at ?? "direct", error: new Error(`the direct way failed${at}: ${message}`) } };
   } finally {
+    // As a browser run does, done or not: the app may keep its idle timer, or a refreshed (rotated)
+    // sign-in, in the cookies, and a fallback to the browser must start from them.
+    await saveSession(http, ctx).catch(() => {});
     await close();
   }
 };

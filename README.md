@@ -33,8 +33,8 @@ bin/hn request:status R-0001 --wait
 | What the site is like: pages, controls, the calls behind them | `site/knowledge/` | grows with each build |
 | The ops | `site/ops/<noun>-<verb>/` | written by the agents, through requests |
 
-`core/` is x-cli's, unchanged except for one setting a public site needs (`noSignIn`) and its
-headless sign-in, so fixes there can be carried between CLIs made from it. The domain folder is
+`core/` is the same in every CLI made from the template, so fixes there can be carried between them
+(`docs/new-site.md`). The domain folder is
 always `site/`; only the command, the origin and the environment prefix change.
 
 ## `bun run configure`

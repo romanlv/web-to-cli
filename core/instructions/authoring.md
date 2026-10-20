@@ -58,9 +58,9 @@ export default defineOp({
 - **`--dry-run`** (`dryRun` in the op's context) stops before the last save, and throws
   `DryRunReached` there. An op with several saves stops before the last one only, so a dry run fills
   everything and saves nothing it shouldn't. An op that only reads ignores it.
-- **Never return, log or save a credential's value** (a token, an API key, a signing secret): return
-  what describes it (its name, when it was made). Core prints only the fields the output schema
-  declares, and `page:requests` shows credentials in bodies as `[redacted]`.
+- **Never return, log or save a credential's value** (a token, an API key, a signing secret), only
+  what describes it (its name, when it was made). `page:requests` shows such values in JSON bodies
+  as `[redacted]`.
 - **Find with the app's own search**: an op that finds records by a value uses the way a person
   would search for it (the app's search, a search field, a filter), and lets the app match. Reading
   every record to match in the op is a last resort, and notes.md says what was tried.
@@ -74,12 +74,12 @@ export default defineOp({
 `examples.json` has an input for each case `spec.md` tells apart, at least one, each tagged with the
 context it works in. Verify runs every example for the run's context, so each must keep working:
 use test data as the domain's authoring.md defines it, never a record that may change or go away.
-An example of a write that can't run again and again (a delete, whose record verify has no step to
-make first) can be `"dryRun": true`: verify runs it with `--dry-run`, and it passes only when the
-op stopped before its save, so it checks every step but the last.
-Verify has no step before or after an example, and when shared code changes it runs every op's
-examples on the live app, in folder order (`item-disable` before `item-enable`). An example that
-needs a record to act on uses a standing one the domain's authoring.md names, never one it makes.
+Verify has no step before or after an example: one that acts on a record uses a standing one the
+domain's authoring.md names, never one it makes. A write that can't repeat (a create, a delete) gets
+`"dryRun": true`: verify runs it with `--dry-run` and passes it only if the op stopped before its
+save. Verify runs an op's examples twice when it has a direct way, and every op's examples when
+shared code changes, in no order you can rely on: each example must pass whatever state the others
+leave its record in (disabling a disabled record passes).
 
 ## Test data
 

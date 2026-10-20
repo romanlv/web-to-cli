@@ -277,13 +277,12 @@ export const runOp = async (
       const problem = [...Value.Errors(entry.definition.output, output)][0];
       throw new Error(`output does not match the op's output schema: ${problem?.instancePath || "/"} ${problem?.message}`);
     }
-    // Only what the schema declares is printed: a field an op passed on whole, such as a secret, is dropped.
-    const data = Value.Clean(entry.definition.output, structuredClone(output));
-    return { ok: true, data, ...(entry.definition.format && { text: entry.definition.format(data as never) }) };
+    return { ok: true, data: output, ...(entry.definition.format && { text: entry.definition.format(output as never) }) };
   };
 
   const directRun = attempt(entry, ctx, started, dryRun);
-  const direct = browser ? {} : await tryDirect(env, entry, input, ctx, directRun, check);
+  // A direct way has no dry run: writes stay in the browser, which stops before the save.
+  const direct = browser || dryRun ? {} : await tryDirect(env, entry, input, ctx, directRun, check);
   if ("outcome" in direct) return direct.outcome;
   const { fellBack } = direct;
 

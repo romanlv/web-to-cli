@@ -164,7 +164,7 @@ received ─▶ building ─▶ done
    └───────────────────▶ cancelled ─▶ (retry)    request:cancel, from any state that isn't final
 ```
 
-The worker is a loop: it takes the oldest received request and starts an awf run for it, as many at once as `SITE.maxRunning` (2 by default; 1 for a site that limits each account). Filing a request starts the worker if none is running. When a request starts, the worker decides whether its run continues or starts again from the first stage, and records `redo` on it until that stage starts. Deferred, declined and duplicate are decided by the run's first stage, intake, so they show up as outcomes of a run that ended early.
+The worker is a loop: it takes the oldest received request and starts an awf run for it, as many at once as `SITE.maxRunning` (2 by default; 1 for a site that limits each account, or whose builds share test data). Filing a request starts the worker if none is running. When a request starts, the worker decides whether its run continues or starts again from the first stage, and records `redo` on it until that stage starts. Deferred, declined and duplicate are decided by the run's first stage, intake, so they show up as outcomes of a run that ended early.
 
 Two requests for the same thing don't both get built:
 
@@ -265,11 +265,11 @@ Three agents work in it, and all run on their own: the **planner**, on a strong 
 
 With `"sandbox": true` the team shares one srt sandbox per run:
 
-- **Writes** only its worktree, a CLI home of the request's own (`.state/sandboxes/R-0012`: sessions, traces, dry runs, failures) a short socket directory (`/tmp/site-R-0012-…`) and its context's saved sign-in where it is (`WEBCLI_CONTEXTS_DIR`), so a token its browser refreshes is saved for the next run.
-- **Reads** a repair's the failure bundles of its op (`.state/failures/<op>/`), and awf's source for the type-check. Not the checkout, other worktrees, `~` or anything else in `.state`.
+- **Writes** only its worktree, a CLI home of the request's own (`.state/sandboxes/R-0012`: sessions, traces, dry runs, failures), a short socket directory (`/tmp/site-R-0012-…`) and its context's saved sign-in file where it is (`WEBCLI_CONTEXTS_DIR`, `auth.json` alone), so a token its browser refreshes is saved for the next run.
+- **Reads** a repair's failure bundles of its op (`.state/failures/<op>/`), and awf's source for the type-check. Not the checkout, other worktrees, `~` or anything else in `.state`.
 - **Reaches** no network but its model's, and the harnesses' own web search is off: it would reach past the allowlist. The browser stays on the host, since Chromium doesn't start under srt: a host browser server, one per run, ending with it, listens on a socket in that directory, and the CLI connects to it (`WEBCLI_BROWSER`). Its session daemons bind their sockets there too.
 - **Checks** with `ci:sandbox`, which is `ci:fast` without the workflow tests: `awf test` can't run under srt, and neither could e2e tests, which need a port for their mock site. The workflow still runs the full checks on the host and hands their failures over as output.
-- **More**, when `"sandbox"` is an object instead of `true`: `{"network": ["docs.playwright.dev"], "read": ["../shared"], "write": [...]}` adds domains and paths (from the checkout's root) to the above. Agents read the account's sign-in and what it can see, so a domain added is somewhere they could send both.
+- **More**, when `"sandbox"` is an object instead of `true`: `{"network": ["docs.playwright.dev"], "read": ["../shared"], "write": [...]}` adds domains and paths (from the checkout's root) to the above. Agents read, and can overwrite, the account's sign-in and what it can see, so a domain added is somewhere they could send both.
 - The worktree gets `node_modules` of its own, from bun's cache: bun resolving through a link to the checkout's would need the checkout readable.
 - Claude in a sandbox signs in with `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token`), from the environment the worker starts from or the checkout's `.env` (gitignored); codex copies its login in.
 

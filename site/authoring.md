@@ -19,8 +19,7 @@ It gets information out of the site for the person whose context it runs in. **I
 op, and nothing an agent does while exploring, submits a form, posts, buys, deletes or changes a
 setting. A request for an op that writes is declined at intake.
 
-<!-- A site you also write to: say exactly what may change, and how test data is marked (below).
-Set `SITE.readOnly` false, and `SITE.maxRunning` 1 when builds would share test data. -->
+<!-- A site you also write to: say exactly what may change, and how test data is marked (below). -->
 
 Ops are named `noun:verb` for what they read: `items:list`, `item:get`, `items:search`.
 
@@ -54,11 +53,10 @@ The CLI only reads, so there is no test data to create: examples read records th
 (old, public, unlikely to be deleted), or the signed-in account's own pages.
 
 <!-- A site you write to says instead:
-- how a test record is marked (a name prefix, a URL on example.com), and that agents and examples
-  create, change or delete only those; enforce it in code too: a helper that refuses any other
-  record when the op runs in a build (a worktree, where `.git` is a file, or WEBCLI_BROWSER set);
-- the standing test records examples act on (verify makes none), and how to recreate one;
-- that a delete's and a create's examples are `"dryRun": true`, and records made while building are
-  deleted before the build ends;
-- that a write presses with a guard: a route that lets the save call through only when it names
-  the record picked, so a press in the wrong row changes nothing. -->
+- how a test record is marked (a name prefix, a URL on example.com); agents and examples touch only
+  those, and a helper refuses any other record when the op runs in a build (`WEBCLI_NO_WORKER` set);
+- the standing test records examples act on, and how to recreate one;
+- that a create's and a delete's examples are `"dryRun": true`, and records a build makes are
+  deleted before it ends;
+- that a write's press is guarded: a route lets the save call through only when it names the
+  record picked, so a press in the wrong row changes nothing. -->

@@ -44,7 +44,7 @@ export class Contexts {
     private readonly cli: string,
   ) {}
 
-  /** WEBCLI_CONTEXTS_DIR: a sandboxed build uses its context's sign-in where it is, and saves the tokens a refresh rotates there. */
+  /** WEBCLI_CONTEXTS_DIR: a sandboxed build uses its context's sign-in where it is, and may rewrite its auth.json. */
   private get dir(): string {
     return envValue("CONTEXTS_DIR") ?? join(this.home, "contexts");
   }
